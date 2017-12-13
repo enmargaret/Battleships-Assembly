@@ -48,8 +48,8 @@ COMPLETE_STR	DB		'Complete!     $'
 
 INST4 DB        ' Use the arrow keys to navigate around the grid$'
 INST5 DB        ' Press ENTER to attack$'
-INST6 DB        ' "O" means that you have successfully hit the ship$'
-INST7 DB        ' "X" means that you missed$'
+INST6 DB        ' "O" means that you have successfully hit the ship.$'
+INST7 DB        ' "X" means that you missed. There are 3 ships in total.$'
 INST8 DB        ' Press any key to play$' 
 
 L3	  DB        '                                                          ||                     ', 0DH		
@@ -78,6 +78,22 @@ MSG   DB        'THANK YOU FOR PLAYING !$'
 
 
 ;--------------GRID---------------------------
+A1 DB '******#$'
+A2 DB '*#***##$'
+A3 DB '*#****#$'
+A4 DB '*#**#**$'
+A5 DB '*#**##*$'
+A6 DB '****#**$'
+A7 DB '*******$'
+
+B1 DB '***#***$'
+B2 DB '**###**$'
+B3 DB '*******$'
+B4 DB '**####*$'
+B5 DB '*#*****$'
+B6 DB '*##****$'
+B7 DB '*#*****$'
+
 C1 DB '*#*****$'
 C2 DB '##*****$'
 C3 DB '*#*****$'
@@ -86,14 +102,26 @@ C5 DB '****#**$'
 C6 DB '*******$'
 C7 DB '***####$'
 
-S1	DB ' #', 0DH
-	DB '##', 0DH
+D1 DB '*******$'
+D2 DB '###****$'
+D3 DB '*#**#**$'
+D4 DB '****#**$'
+D5 DB '*#**#**$'
+D6 DB '*##*#**$'
+D7 DB '*#*****$'
+
+E1 DB '******#$'
+E2 DB '******#$'
+E3 DB '******#$'
+E4 DB '******#$'
+E5 DB '***#**#$'
+E6 DB '***####$'
+E7 DB '***#**#$'
+	
+S1	DB '###', 0DH
 	DB ' #', 0DH, 0AH, '$'
 	
-S2	DB '###', 0DH
-	DB ' #', 0DH, 0AH, '$'
-	
-S3	DB '####', 0DH, 0AH, '$'
+S2	DB '####', 0DH, 0AH, '$'
 ;-----------------FILE READING---------------
 	PATHFILENAME  DB 'grid2.txt', 00H
 	FR_PATHFILENAME  DB 'hs.txt', 00H
@@ -107,8 +135,8 @@ S3	DB '####', 0DH, 0AH, '$'
 	DISPLAY_STR    DB 1001 DUP('$')  
 	COPY_STR    DB 1001 DUP('$')  ;length = original length of record + 1 (for $)
 	MODIFIED DB 10,13, 'Modified file: $'
-	STR_LEN DB ?
-	STR_LEN2 DB ?
+	STR_LEN DW ?
+	STR_LEN2 DW ?
 
 	FW_ERROR1_STR    DB 'Error in creating file.$'
 	FW_ERROR2_STR    DB 'Error writing in file.$'
@@ -126,6 +154,8 @@ S3	DB '####', 0DH, 0AH, '$'
 	SHIP_MISS DB 'You missed!$', 10,13
 	SHIP_DOWN DB 'You hit part of a ship!$', 10, 13
 	WIN DB 'YOU WIN!$', 10,13
+	TYPES DB 'SHIP TYPES: $', 10, 13
+	NOTE DB 'NOTE: Orientations may vary $', 10, 13
 	SHIPS_DOWN DW 0
 	INPUT DB 3 DUP ('$')
 	H_SCORE_STR DB 3 DUP ('$')
@@ -134,8 +164,8 @@ S3	DB '####', 0DH, 0AH, '$'
 	H_SCORE DW 0
 	C_SCORE DW 0
 	MISSED DW 0
-	NUM DB 0
-	COUNTER DW 0
+	NUM DW 0
+	RAND DB 0
 ;-------CONSTANTS AND OTHER VARIABLES----------
 	ZERO DW 0
 	ONE DW 1
@@ -157,13 +187,11 @@ S3	DB '####', 0DH, 0AH, '$'
 	DL_ROW DW ?
 	DH_COL DW ?
 	NEW_INPUT DB ?
-	X_LOC DB 1
-	Y_LOC DB 1
-	COUNT_X DB 1
-	COUNT_Y DB 1
+	X_LOC DW 1
+	Y_LOC DW 1
+	COUNT_X DW 1
+	COUNT_Y DW 1
 	COUNT DB 1
-	POINTER DW 0
-;---------------------------------------------
 
 ;============================================MAIN=================================================
 .CODE
@@ -172,14 +200,13 @@ MAIN PROC FAR
 	MOV DS,AX     	
 	
 	CALL DISPLAY_MENU
-	CALL PRINT_GRID
+	CALL PRINT_GRID	
 	CALL MOVE_ARROW
 	CALL EXIT
 MAIN ENDP
 ;=======================================END OF MAIN=================================================
 
 ;========================================GAME SCREENS===============================================
-;------------------------------------------------------------------
 DISPLAY_MENU PROC NEAR
 	CALL	_BLACK_SCREEN
 	MOV DL, 00H
@@ -264,140 +291,150 @@ DISPLAY_MENU PROC NEAR
 	MOV		AX, 0003H
 	INT		10H
 
-		;-----------------------------
+	;-----------------------------
 
-		CALL	_BLACK_SCREEN
-		MOV DL, 00H
-		MOV DH, 00H
-		CALL	SET_CURSOR
-		LEA		DX, L2
-		CALL 	PRINT
+	CALL	_BLACK_SCREEN
+	MOV DL, 00H
+	MOV DH, 00H
+	CALL	SET_CURSOR
+	LEA		DX, L2
+	CALL 	PRINT
 
-		
-		MOV		DL, 22H
-		MOV		DH, 15
-		CALL	SET_CURSOR
+	
+	MOV		DL, 22H
+	MOV		DH, 15
+	CALL	SET_CURSOR
 
-        LEA		DX, LOAD_STR
-        CALL	PRINT
+	LEA		DX, LOAD_STR
+	CALL	PRINT
 
 
-			;MOV		TEMP, 00
+		;MOV		TEMP, 00
 
 	__ITERATE:
-			;set cursor
-			MOV		DL, TEMP
-			MOV		DH, 16
-			CALL	SET_CURSOR
+		;set cursor
+		MOV		DL, TEMP
+		MOV		DH, 16
+		CALL	SET_CURSOR
 
-			;display char from register
-			MOV		AL, 0DBH
-			MOV		AH, 02H
-			MOV		DL, AL
-			INT		21H
+		;display char from register
+		MOV		AL, 0DBH
+		MOV		AH, 02H
+		MOV		DL, AL
+		INT		21H
 
-			CALL	DELAY
+		CALL	DELAY
 
-			INC		TEMP
-			CMP		TEMP, 50H
-			JE		PROCEED
+		INC		TEMP
+		CMP		TEMP, 50H
+		JE		PROCEED
 
-			JMP		__ITERATE
+		JMP		__ITERATE
 PROCEED:
 	RET
 DISPLAY_MENU ENDP
 ;-------------------------------------------
-
-
-
-;-------------------------------------------
 _TERMINATE PROC	NEAR
-			;set cursor
-			MOV		DL, 22H
-			MOV		DH, 15
-			CALL	SET_CURSOR
+	;set cursor
+	MOV		DL, 22H
+	MOV		DH, 15
+	CALL	SET_CURSOR
 
-			;display complete string
-			MOV		AH, 09H
-			LEA		DX, COMPLETE_STR
-			INT		21H
+	;display complete string
+	MOV		AH, 09H
+	LEA		DX, COMPLETE_STR
+	INT		21H
 
-			CALL    _BLACK_SCREEN
-			MOV     DL, 00H
-			MOV     DH, 7H
-			CALL    SET_CURSOR
+	CALL    _BLACK_SCREEN
+	MOV     DL, 00H
+	MOV     DH, 7H
+	CALL    SET_CURSOR
 
-			LEA     DX, L4
-			CALL    PRINT
+	LEA     DX, L4
+	CALL    PRINT
 
-			MOV     DL, 18H
-			MOV     DH, 10H
-			CALL    SET_CURSOR
+	MOV     DL, 18H
+	MOV     DH, 10H
+	CALL    SET_CURSOR
 
-			LEA     DX, MSG
-			CALL    PRINT
+	LEA     DX, MSG
+	CALL    PRINT
 
 
-			;set cursor
-			MOV		DL, 00
-			MOV		DH, 20
-			CALL	SET_CURSOR
+	;set cursor
+	MOV		DL, 00
+	MOV		DH, 20
+	CALL	SET_CURSOR
 
-			MOV		AX, 4C00H
-			INT		21H
+	MOV		AX, 4C00H
+	INT		21H
 _TERMINATE ENDP
 
 ;-----------------------------------------------
 PRINT	PROC	NEAR
-		MOV		AH, 09H
-		INT		21H
-		RET
+	MOV		AH, 09H
+	INT		21H
+	RET
 PRINT	ENDP
 ;-----------------------------------------------
 _INPUT	PROC	NEAR
-		MOV    	AH, 01H		;checks keyboard activity
-		INT    	16H
+	MOV    	AH, 01H		;checks keyboard activity
+	INT    	16H
 
-		MOV 	AH, 00H		;actually stores the input into ax
-		INT 	16H
+	MOV 	AH, 00H		;actually stores the input into ax
+	INT 	16H
 
-	BACK:
-		RET
+BACK:
+	RET
 _INPUT	ENDP
 ;-----------------------------------------------
 _BLACK_SCREEN	PROC	NEAR
-				MOV		AX, 0003H
-				INT		10H
-				RET
+	MOV		AX, 0003H
+	INT		10H
+	RET
 _BLACK_SCREEN	ENDP
 ;-----------------------------------------------
 _BORDER_SCREEN	PROC	NEAR
-				MOV 	AX, 0600H
-				MOV 	BH, 0BFH
-				MOV 	CX, 0000H
-				MOV		DX, 134FH
-				INT 	10H
-				RET
+	MOV 	AX, 0600H
+	MOV 	BH, 0BFH
+	MOV 	CX, 0000H
+	MOV		DX, 134FH
+	INT 	10H
+	RET
 _BORDER_SCREEN	ENDP
 ;-----------------------------------------------
 _MAIN_SCREEN	PROC	NEAR
-				MOV 	AX, 0600H
-				MOV 	BH, 0FH
-				MOV 	CX, 0101H
-				MOV		DX, 124EH
-				INT 	10H
+	MOV 	AX, 0600H
+	MOV 	BH, 0FH
+	MOV 	CX, 0101H
+	MOV		DX, 124EH
+	INT 	10H
 
-				MOV 	CX, 3200H
-				MOV 	AH, 01H
-				INT 	10H
+	MOV 	CX, 3200H
+	MOV 	AH, 01H
+	INT 	10H
+	
+	CALL SHIP_TYPES
 
-				RET
+	RET
 _MAIN_SCREEN	ENDP
-;-----------------------------------------------
-
-
+;------------------------------------------------
+SHIP_TYPES PROC NEAR
+	MOV DL, 10
+	MOV DH, 5
+	CALL SET_CURSOR
+	LEA DX, TYPES
+	CALL PRINT
+	
+	MOV DL, 10
+	MOV DH, 7
+	CALL SET_CURSOR
+	LEA DX, S1
+	CALL PRINT
+	
+	RET
+SHIP_TYPES ENDP
 ;=======================================PROCEDURES==================================================
-;-------------------------------------------------------
 EXIT PROC NEAR	
 	CALL CLEAR_SCREEN
 	MOV AH,4CH
@@ -454,6 +491,8 @@ SET_CURSOR PROC	NEAR
 SET_CURSOR ENDP
 ;---------------------------------------------------------------
 MOVE_ARROW PROC NEAR ;moves the cursor and checks for keys pressed
+
+	CALL RANDGEN
 
 	MOV AX, SIX
 	MOV DH_COL, AX
@@ -538,7 +577,7 @@ MOVE_ARROW PROC NEAR ;moves the cursor and checks for keys pressed
 	LEFT_BORDER: ;locks the cursor within the left boundary
 		MOV CX, TWOSIX
 		MOV DL_ROW, CX
-		MOV CL, ONE
+		MOV CX, ONE
 		MOV X_LOC, CX
 		JMP ITERATE
 		
@@ -636,7 +675,7 @@ PRINT_MISSED PROC	NEAR
 PRINT_MISSED ENDP
 ;---------------------------------------------------------------
 TO_STRING PROC NEAR
-	MOV AL, C_SCORE
+	MOV AX, C_SCORE
   	XOR AH, AH
 
 	;number to convert is in AX
@@ -668,7 +707,7 @@ TO_STRING PROC NEAR
 TO_STRING ENDP
 ;-----------------------------------------------
 TO_STRING_MISS PROC NEAR
-	MOV AL, MISSED
+	MOV AX, MISSED
   	XOR AH, AH
 
 	;number to convert is in AX
@@ -728,7 +767,7 @@ ONE_DIGIT:
 	ADD NUM, AX
 	
 	MOV CX, C_SCORE
-	CMP CX, NUM
+	CMP CX, NUM ; ORIGINAL IS CX JUST PUTTING HERE IN CASE CODE BREAKS
 	JG REPLACE_HS
 	JLE NO_CHANGE
 	
@@ -781,7 +820,7 @@ FILE_READ PROC NEAR
 	CMP AX, 00            ;zero bytes read?
 	JE DISPLAY_ERROR3
 
-	MOV STR_LEN, AL
+	MOV STR_LEN, AX
   
 	CALL CLEAR_SCREEN
 	MOV DL, DL_ROW
@@ -853,64 +892,306 @@ READ_HS PROC NEAR
 READ_HS ENDP
 ;---------------------------------------------
 CHANGE_STR PROC NEAR	
-	MOV BL, ONE
+	MOV BX, ONE
 	MOV COUNT, BL
-	MOV COUNT_X, BL
-
-	CMP Y_LOC, BL
-	JE STRING_1
-
-	MOV BL, TWO
-	CMP Y_LOC, BL
-	JE STRING_2
-
-	MOV BL, THREE
-	CMP Y_LOC, BL
-	JE STRING_3
+	MOV COUNT_X, BX
 	
-	MOV BL, FOUR
-	CMP Y_LOC, BL
-	JE STRING_4
+	CMP RAND, 0
+	JE ANS_1
+	CMP RAND, 1
+	JE ANS_2
+	CMP RAND, 2
+	JE ANS_3
+	CMP RAND, 3
+	JE ANS_4
+	CMP RAND, 4
+	JE ANS_5
 	
-	MOV BL, FIVE
-	CMP Y_LOC, BL
-	JE STRING_5
-	
-	MOV BL, SIX
-	CMP Y_LOC, BL
-	JE STRING_6
-	
-	MOV BL, SEVEN
-	CMP Y_LOC, BL
-	JE STRING_7
+ANS_1:
+	MOV BX, ONE
+	CMP Y_LOC, BX
+	JE A_1
 
-STRING_1:
+	MOV BX, TWO
+	CMP Y_LOC, BX
+	JE A_2
+
+	MOV BX, THREE
+	CMP Y_LOC, BX
+	JE A_3
+	
+	MOV BX, FOUR
+	CMP Y_LOC, BX
+	JE A_4
+	
+	MOV BX, FIVE
+	CMP Y_LOC, BX
+	JE A_5
+	
+	MOV BX, SIX
+	CMP Y_LOC, BX
+	JE A_6
+	
+	MOV BX, SEVEN
+	CMP Y_LOC, BX
+	JE A_7
+
+ANS_2:
+	MOV BX, ONE
+	CMP Y_LOC, BX
+	JE B_1
+
+	MOV BX, TWO
+	CMP Y_LOC, BX
+	JE B_2
+
+	MOV BX, THREE
+	CMP Y_LOC, BX
+	JE B_3
+	
+	MOV BX, FOUR
+	CMP Y_LOC, BX
+	JE B_4
+	
+	MOV BX, FIVE
+	CMP Y_LOC, BX
+	JE B_5
+	
+	MOV BX, SIX
+	CMP Y_LOC, BX
+	JE B_6
+	
+	MOV BX, SEVEN
+	CMP Y_LOC, BX
+	JE B_7
+	
+	
+ANS_3:
+	MOV BX, ONE
+	CMP Y_LOC, BX
+	JE C_1
+
+	MOV BX, TWO
+	CMP Y_LOC, BX
+	JE C_2
+
+	MOV BX, THREE
+	CMP Y_LOC, BX
+	JE C_3
+	
+	MOV BX, FOUR
+	CMP Y_LOC, BX
+	JE C_4
+	
+	MOV BX, FIVE
+	CMP Y_LOC, BX
+	JE C_5
+	
+	MOV BX, SIX
+	CMP Y_LOC, BX
+	JE C_6
+	
+	MOV BX, SEVEN
+	CMP Y_LOC, BX
+	JE C_7
+	
+ANS_4:
+	MOV BX, ONE
+	CMP Y_LOC, BX
+	JE D_1
+
+	MOV BX, TWO
+	CMP Y_LOC, BX
+	JE D_2
+
+	MOV BX, THREE
+	CMP Y_LOC, BX
+	JE D_3
+	
+	MOV BX, FOUR
+	CMP Y_LOC, BX
+	JE D_4
+	
+	MOV BX, FIVE
+	CMP Y_LOC, BX
+	JE D_5
+	
+	MOV BX, SIX
+	CMP Y_LOC, BX
+	JE D_6
+	
+	MOV BX, SEVEN
+	CMP Y_LOC, BX
+	JE D_7
+	
+ANS_5:
+	MOV BX, ONE
+	CMP Y_LOC, BX
+	JE E_1
+
+	MOV BX, TWO
+	CMP Y_LOC, BX
+	JE E_2
+
+	MOV BX, THREE
+	CMP Y_LOC, BX
+	JE E_3
+	
+	MOV BX, FOUR
+	CMP Y_LOC, BX
+	JE E_4
+	
+	MOV BX, FIVE
+	CMP Y_LOC, BX
+	JE E_5
+	
+	MOV BX, SIX
+	CMP Y_LOC, BX
+	JE E_6
+	
+	MOV BX, SEVEN
+	CMP Y_LOC, BX
+	JE E_7
+	
+A_1:
+	LEA SI, A1
+	JMP CHECK_X
+	
+A_2:
+	LEA SI, A2
+	JMP CHECK_X
+
+A_3:
+	LEA SI, A3
+	JMP CHECK_X
+
+A_4:
+	LEA SI, A4
+	JMP CHECK_X
+	
+A_5:
+	LEA SI, A5
+	JMP CHECK_X
+	
+A_6:
+	LEA SI, A6
+	JMP CHECK_X
+	
+A_7:
+	LEA SI, A7
+	JMP CHECK_X
+	
+B_1:
+	LEA SI, B1
+	JMP CHECK_X
+	
+B_2:
+	LEA SI, B2
+	JMP CHECK_X
+
+B_3:
+	LEA SI, B3
+	JMP CHECK_X
+
+B_4:
+	LEA SI, B4
+	JMP CHECK_X
+	
+B_5:
+	LEA SI, B5
+	JMP CHECK_X
+	
+B_6:
+	LEA SI, B6
+	JMP CHECK_X
+	
+B_7:
+	LEA SI, B7
+	JMP CHECK_X	
+
+C_1:
 	LEA SI, C1
 	JMP CHECK_X
 	
-STRING_2:
+C_2:
 	LEA SI, C2
 	JMP CHECK_X
 
-STRING_3:
+C_3:
 	LEA SI, C3
 	JMP CHECK_X
 
-STRING_4:
+C_4:
 	LEA SI, C4
 	JMP CHECK_X
 	
-STRING_5:
+C_5:
 	LEA SI, C5
 	JMP CHECK_X
 	
-STRING_6:
+C_6:
 	LEA SI, C6
 	JMP CHECK_X
 	
-STRING_7:
+C_7:
 	LEA SI, C7
 	JMP CHECK_X
+	
+D_1:
+	LEA SI, D1
+	JMP CHECK_X
+	
+D_2:
+	LEA SI, D2
+	JMP CHECK_X
+
+D_3:
+	LEA SI, D3
+	JMP CHECK_X
+
+D_4:
+	LEA SI, D4
+	JMP CHECK_X
+	
+D_5:
+	LEA SI, D5
+	JMP CHECK_X
+	
+D_6:
+	LEA SI, D6
+	JMP CHECK_X
+	
+D_7:
+	LEA SI, D7
+	JMP CHECK_X
+
+E_1:
+	LEA SI, E1
+	JMP CHECK_X
+	
+E_2:
+	LEA SI, E2
+	JMP CHECK_X
+
+E_3:
+	LEA SI, E3
+	JMP CHECK_X
+
+E_4:
+	LEA SI, E4
+	JMP CHECK_X
+	
+E_5:
+	LEA SI, E5
+	JMP CHECK_X
+	
+E_6:
+	LEA SI, E6
+	JMP CHECK_X
+	
+E_7:
+	LEA SI, E7
+	JMP CHECK_X	
 	
 CHECK_X:
 	MOV BL, COUNT_X
@@ -1028,6 +1309,22 @@ FW_DISPLAY_ERROR3:
 
 FILE_WRITE ENDP
 ;--------------------------------------------------------------
+RANDGEN PROC NEAR  ;generate a rand no using the system time and changes current box number accordingly
+
+   MOV AH, 00h   ; interrupts to get system time        
+   INT 1AH       ; CX:DX now hold number of clock ticks since midnight      
+
+   mov  ax, dx
+   xor  dx, dx 	 ;clear DX
+   mov  cx, 5    ;
+   div  cx       ; here dx contains the remainder of the division - from 0 to 2
+
+   ADD DL, 1
+   MOV RAND, DL ;RAND holds random value
+
+  RET 
+RANDGEN endp
+;---------------------------------------------------------------
 CLEAR_SCREEN PROC NEAR  
   MOV AX, 0600H   ;full screen 
   MOV BH, 07H     ;white background (7), blue foreground (1)
