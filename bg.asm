@@ -26,7 +26,7 @@ L1 		DB		'                                                                      
 
 INST2	DB		'DESTROY ALL SHIPS$'
 INST3	DB		'Press any key to start$'
-INST	DB		'PRESS E for EXIT$'
+INST	DB		'PRESS < esc >  for EXIT$'
 
 L2 	  DB        '                                                                                 ', 0DH
       DB        '                                       |\/                                       ', 0DH
@@ -118,10 +118,9 @@ E5 DB '***#**#$'
 E6 DB '***####$'
 E7 DB '***#**#$'
 	
-S1	DB '###', 0DH
-	DB ' #', 0DH, 0AH, '$'
-	
-S2	DB '####', 0DH, 0AH, '$'
+S1	DB '###$', 10, 13
+S2	DB ' # $', 0DH, 0AH
+S3	DB '####$', 0DH, 0AH
 ;-----------------FILE READING---------------
 	PATHFILENAME  DB 'grid2.txt', 00H
 	FR_PATHFILENAME  DB 'hs.txt', 00H
@@ -155,16 +154,17 @@ S2	DB '####', 0DH, 0AH, '$'
 	SHIP_DOWN DB 'You hit part of a ship!$', 10, 13
 	WIN DB 'YOU WIN!$', 10,13
 	TYPES DB 'SHIP TYPES: $', 10, 13
-	NOTE DB 'NOTE: Orientations may vary $', 10, 13
+	NOTE DB 'NOTE: Ship$'
+	NOTE1 DB 'positions may$'
+	NOTE2 DB 'vary$' 
 	SHIPS_DOWN DW 0
 	INPUT DB 3 DUP ('$')
 	H_SCORE_STR DB 3 DUP ('$')
-	C_SCORE_STR DB 3 ('$')
 	MISS_STR DB 3 DUP ('$')
 	H_SCORE DW 0
 	C_SCORE DW 0
 	MISSED DW 0
-	NUM DW 0
+	NUM DW '$'
 	RAND DB 0
 ;-------CONSTANTS AND OTHER VARIABLES----------
 	ZERO DW 0
@@ -177,25 +177,35 @@ S2	DB '####', 0DH, 0AH, '$'
 	SEVEN DW 7
 	TEN DW 10
 	TWELVE DW 12
-	TWOSIX DW 26	
-	EIGHTEEN DW 18
-	FIFTY DW 50
+	TWOSIX DB 26	
+	EIGHTEEN DB 18
+	DZERO DB 0
+	DONE DB 1
+	DTWO DB 2
+	DFOUR DB 4
+	DFIVE DB 5
+	DSIX DB 6
+	DSEVEN DB 7
+	FIFTY DB 50
 	MISS DB 'X$'
 	HIT DB 'O$'
 	SPACE DB ' $'
 ;-------------MOVE_ARROW VARIABLES-----------	
-	DL_ROW DW ?
-	DH_COL DW ?
+	DL_ROW DB ?
+	DH_COL DB ?
 	NEW_INPUT DB ?
 	X_LOC DW 1
 	Y_LOC DW 1
 	COUNT_X DW 1
 	COUNT_Y DW 1
-	COUNT DB 1
+	COUNT DW 1
+	COUNTER DW ?
+	SUM DW 0
 
 ;============================================MAIN=================================================
 .CODE
 MAIN PROC FAR
+
 	MOV AX,@DATA
 	MOV DS,AX     	
 	
@@ -203,11 +213,12 @@ MAIN PROC FAR
 	CALL PRINT_GRID	
 	CALL MOVE_ARROW
 	CALL EXIT
+	
 MAIN ENDP
 ;=======================================END OF MAIN=================================================
 
 ;========================================GAME SCREENS===============================================
-DISPLAY_MENU PROC NEAR
+DISPLAY_MENU PROC NEAR ;prints the main menu
 	CALL	_BLACK_SCREEN
 	MOV DL, 00H
 	MOV DH, 00H
@@ -236,13 +247,12 @@ DISPLAY_MENU PROC NEAR
 	CALL	SET_CURSOR
 	LEA		DX, INST3
 	CALL	PRINT
-
-	MOV		AH, 10H				;input
-	INT 	16H
-	MOV		AX, 0003H
-	INT		10H
+	
+	CALL GET_KEY
+	CMP AL, 27 ;checks if the 'esc' key has been pressed
+	JE EXIT_PROG
 	;-----------------------------
-	CALL    _BLACK_SCREEN 
+	CALL    _BLACK_SCREEN ;prints the help screen
 	MOV     DL, 8H
 	MOV     DH, 6H
 
@@ -293,7 +303,7 @@ DISPLAY_MENU PROC NEAR
 
 	;-----------------------------
 
-	CALL	_BLACK_SCREEN
+	CALL	_BLACK_SCREEN ;prints the loading screen
 	MOV DL, 00H
 	MOV DH, 00H
 	CALL	SET_CURSOR
@@ -334,7 +344,7 @@ PROCEED:
 	RET
 DISPLAY_MENU ENDP
 ;-------------------------------------------
-_TERMINATE PROC	NEAR
+_TERMINATE PROC	NEAR ;displays the game over screen
 	;set cursor
 	MOV		DL, 22H
 	MOV		DH, 15
@@ -369,24 +379,12 @@ _TERMINATE PROC	NEAR
 	MOV		AX, 4C00H
 	INT		21H
 _TERMINATE ENDP
-
 ;-----------------------------------------------
-PRINT	PROC	NEAR
+PRINT	PROC	NEAR ;print function
 	MOV		AH, 09H
 	INT		21H
 	RET
 PRINT	ENDP
-;-----------------------------------------------
-_INPUT	PROC	NEAR
-	MOV    	AH, 01H		;checks keyboard activity
-	INT    	16H
-
-	MOV 	AH, 00H		;actually stores the input into ax
-	INT 	16H
-
-BACK:
-	RET
-_INPUT	ENDP
 ;-----------------------------------------------
 _BLACK_SCREEN	PROC	NEAR
 	MOV		AX, 0003H
@@ -420,16 +418,46 @@ _MAIN_SCREEN	PROC	NEAR
 _MAIN_SCREEN	ENDP
 ;------------------------------------------------
 SHIP_TYPES PROC NEAR
-	MOV DL, 10
+	MOV DL, 6
 	MOV DH, 5
 	CALL SET_CURSOR
 	LEA DX, TYPES
 	CALL PRINT
 	
-	MOV DL, 10
+	MOV DL, 9
 	MOV DH, 7
 	CALL SET_CURSOR
 	LEA DX, S1
+	CALL PRINT
+	
+	MOV DL, 9
+	MOV DH, 8
+	CALL SET_CURSOR
+	LEA DX, S2
+	CALL PRINT
+	
+	MOV DL, 8
+	MOV DH, 10
+	CALL SET_CURSOR
+	LEA DX, S3
+	CALL PRINT
+	
+	MOV DL, 6
+	MOV DH, 12
+	CALL SET_CURSOR
+	LEA DX, NOTE
+	CALL PRINT
+	
+	MOV DL, 6
+	MOV DH, 13
+	CALL SET_CURSOR
+	LEA DX, NOTE1
+	CALL PRINT
+	
+	MOV DL, 6
+	MOV DH, 14
+	CALL SET_CURSOR
+	LEA DX, NOTE2
 	CALL PRINT
 	
 	RET
@@ -442,9 +470,9 @@ EXIT PROC NEAR
 EXIT ENDP
 ;-------------------------------------------------------
 PRINT_GRID PROC NEAR ;Prints the grid on to the screen
-	MOV DH, FIVE
+	MOV DH, DFIVE
 	MOV DH_COL, DH
-	MOV DL, ZERO
+	MOV DL, DZERO
 	MOV DL_ROW, DL
 	CALL FILE_READ
 
@@ -476,11 +504,10 @@ PRINT_GRID PROC NEAR ;Prints the grid on to the screen
 	MOV AH, 09
 	LEA DX, NUM_MISS
 	INT 21H
-	RET
 	
-	MOV DL, 26
-	MOV DH, 6
-	CALL SET_CURSOR
+	CALL SHIP_TYPES
+	
+	RET
 PRINT_GRID ENDP
 ;---------------------------------------------------------------
 SET_CURSOR PROC	NEAR
@@ -494,10 +521,10 @@ MOVE_ARROW PROC NEAR ;moves the cursor and checks for keys pressed
 
 	CALL RANDGEN
 
-	MOV AX, SIX
-	MOV DH_COL, AX
-	MOV AX, TWOSIX
-	MOV DL_ROW, AX
+	MOV AL, DSIX
+	MOV DH_COL, AL
+	MOV AL, TWOSIX
+	MOV DL_ROW, AL
 	
 	ITERATE:
 		MOV	DL, DL_ROW
@@ -532,65 +559,65 @@ MOVE_ARROW PROC NEAR ;moves the cursor and checks for keys pressed
 		CALL EXIT
 		
 	ADD_UP:	 ;moves the cursor up
-		MOV CX, TWO
-		SUB	DH_COL, CX
+		MOV CL, DTWO
+		SUB	DH_COL, CL
 		MOV CX, SIX
 		DEC Y_LOC
-		CMP DH_COL, CX
+		CMP DH_COL, CL
 		JL UPPER_BORDER	
 		JMP	ITERATE
 		
 	ADD_LEFT: ;moves the cursor left
-		MOV CX, FOUR
-		SUB	DL_ROW, CX
-		MOV	CX, TWOSIX
+		MOV CL, DFOUR
+		SUB	DL_ROW, CL
+		MOV	CL, TWOSIX
 		DEC X_LOC
-		CMP	DL_ROW, CX
+		CMP	DL_ROW, CL
 		JL LEFT_BORDER
 		JMP	ITERATE
 		
 	ADD_DOWN: ;moves the cursor down
-		MOV CX, TWO
-		ADD	DH_COL, CX
-		MOV CX, EIGHTEEN 
+		MOV CL, DTWO
+		ADD	DH_COL, CL
+		MOV CL, EIGHTEEN 
 		INC Y_LOC
-		CMP	DH_COL, CX
+		CMP	DH_COL, CL
 		JG LOWER_BORDER
 		JMP	ITERATE
 	  
 	ADD_RIGHT: ;moves the cursor right
-		MOV CX, FOUR
-		ADD	DL_ROW, CX
-		MOV CX, FIFTY 
+		MOV CL, DFOUR
+		ADD	DL_ROW, CL
+		MOV CL, FIFTY 
 		INC X_LOC
-		CMP	DL_ROW, CX
+		CMP	DL_ROW, CL
 		JG RIGHT_BORDER
 		JMP	ITERATE
 	  
 	RIGHT_BORDER: ;locks the cursor within the right boundary
-		MOV CX, FIFTY
-		MOV DL_ROW, CX
+		MOV CL, FIFTY
+		MOV DL_ROW, CL
 		MOV CX, SEVEN
 		MOV X_LOC, CX
 		JMP ITERATE
 
 	LEFT_BORDER: ;locks the cursor within the left boundary
-		MOV CX, TWOSIX
-		MOV DL_ROW, CX
+		MOV CL, TWOSIX
+		MOV DL_ROW, CL
 		MOV CX, ONE
 		MOV X_LOC, CX
 		JMP ITERATE
 		
 	UPPER_BORDER: ;locks the cursor within the upper boundary
-		MOV CX, SIX
-		MOV DH_COL, CX
+		MOV CL, DSIX
+		MOV DH_COL, CL
 		MOV CX, ONE
 		MOV Y_LOC, CX
 		JMP ITERATE
 
 	LOWER_BORDER: ;locks the cursor withing the lower boundary
-		MOV CX, EIGHTEEN
-		MOV DH_COL, CX
+		MOV CL, EIGHTEEN
+		MOV DH_COL, CL
 		MOV CX, SEVEN
 		MOV Y_LOC, CX
 		JMP ITERATE
@@ -733,44 +760,50 @@ TO_STRING_MISS PROC NEAR
 	RET
 TO_STRING_MISS ENDP
 ;-----------------------------------------------
-CHECK_HS PROC NEAR
-	CMP MISSED, 10
-	JE GAME_OVER
-	CMP C_SCORE, 12
-	JE YOU_WIN
+CHECK_HS PROC NEAR	;this procedure checks if current score is higher than the saved high score
+	;CMP MISSED, 10
+	;JE GAME_OVER
+	;CMP C_SCORE, 12
+	;JE YOU_WIN
 	
-	XOR AH, AH
+	CLD               			  ;clear direction flag (left to right)
+  	MOV CX, COUNT        ;initializes CX (counter) to 16 bytes
+  	LEA SI, H_SCORE_STR  		  ;initialize receiving address
+	MOV COUNTER, 1
+	MOV SUM, 0000
+	CONVERT_TO_DEC:
+		XOR AX, AX
+	    MOV AL, [SI]
+	    SUB AL, '0'
+	    ADC AH, 0 				;--get rid of unneccesary values in ah
+	    MOV AH, 00
+	    MUL COUNTER
+	    ADD SUM, AX
+	    INC SI
+	    MOV AX, COUNTER
+	    MUL TEN
+	    MOV COUNTER, AX
+	    MOV AX, 0000
+	LOOP CONVERT_TO_DEC
 
-	LEA SI, H_SCORE_STR
-	MOV CX, STR_LEN2
-	MOV NUM, 0
-	CMP CX, 1
-	JE ONE_DIGIT
-	
-	MOV BX, 10
-	
-	REPEAT:
-	LEA SI, H_SCORE_STR
-	MOV AL, [SI]
-	SUB AL, 48
-	MOV AH, 00
-	MUL BX
-	
-	MOV NUM, AX
-	MOV BX, 0
-	INC SI
-	
-ONE_DIGIT:
-	MOV AL, [SI]
-	SUB AL, 48
-	MOV AH, 00
-	ADD NUM, AX
-	
-	MOV CX, C_SCORE
-	CMP CX, NUM ; ORIGINAL IS CX JUST PUTTING HERE IN CASE CODE BREAKS
-	JG REPLACE_HS
-	JLE NO_CHANGE
-	
+	PROCEED_TO_COMPARE:
+		MOV AH, 00
+		MOV AX, C_SCORE
+		CMP AX, SUM
+		JLE END_NORMAL
+		CMP MISSED, 10
+		JE GAME_OVER_NEW_HS
+		;JMP CHECK_WIN
+		CALL YOU_WIN 
+		JMP RET1
+	END_NORMAL:
+		CALL GAME_OVER
+	RET1:
+		RET
+
+GAME_OVER_NEW_HS:
+	CALL FILE_WRITE
+	CALL _TERMINATE
 GAME_OVER:
 	CALL _TERMINATE
 	
@@ -781,11 +814,12 @@ YOU_WIN:
 	CALL SET_CURSOR
 	LEA DX, WIN
 	CALL PRINT
+	JMP REPLACE_HS
+	
+REPLACE_HS:	
+	CALL FILE_WRITE
 	MOV AH,4CH
 	INT 21H
-
-REPLACE_HS:
-	CALL FILE_WRITE
 	
 NO_CHANGE:
 	CALL EXIT
@@ -891,11 +925,11 @@ READ_HS PROC NEAR
 	RET
 READ_HS ENDP
 ;---------------------------------------------
-CHANGE_STR PROC NEAR	
+CHANGE_STR PROC NEAR ;this part checks whether you have hit a ship or not
 	MOV BX, ONE
-	MOV COUNT, BL
 	MOV COUNT_X, BX
-	
+
+;compares which solution to check based on the number generated	
 	CMP RAND, 0
 	JE ANS_1
 	CMP RAND, 1
@@ -1194,8 +1228,8 @@ E_7:
 	JMP CHECK_X	
 	
 CHECK_X:
-	MOV BL, COUNT_X
-	CMP X_LOC, BL
+	MOV BX, COUNT_X
+	CMP X_LOC, BX
 	JL ADD_X
 	JE CHECK_STAR
 	
@@ -1274,11 +1308,11 @@ FILE_WRITE PROC NEAR
   ;write file
   MOV AH, 40H           ;request write record
   MOV BX, FILEHANDLE    ;file handle
-  MOV CX, STR_LEN2            ;record length
-  LEA DX, C_SCORE_STR    ;address of output area
+  MOV CX, 2            ;record length
+  LEA DX, INPUT    ;address of output area
   INT 21H
   JC FW_DISPLAY_ERROR2     ;if carry flag = 1, there's error in writing (nothing is written)
-  CMP AX, STR_LEN2            ;after writing, set AX to size of chars nga na write
+  CMP AX, 2            ;after writing, set AX to size of chars nga na write
   JNE FW_DISPLAY_ERROR3
   
   ;close file handle
@@ -1311,18 +1345,18 @@ FILE_WRITE ENDP
 ;--------------------------------------------------------------
 RANDGEN PROC NEAR  ;generate a rand no using the system time and changes current box number accordingly
 
-   MOV AH, 00h   ; interrupts to get system time        
-   INT 1AH       ; CX:DX now hold number of clock ticks since midnight      
+	MOV AH, 00h   ; interrupts to get system time        
+	INT 1AH       ; CX:DX now hold number of clock ticks since midnight      
 
-   mov  ax, dx
-   xor  dx, dx 	 ;clear DX
-   mov  cx, 5    ;
-   div  cx       ; here dx contains the remainder of the division - from 0 to 2
+	mov  ax, dx
+	xor  dx, dx 	 ;clear DX
+	mov  cx, 5    ;
+	div  cx       ; here dx contains the remainder of the division - from 0 to 2
 
-   ADD DL, 1
-   MOV RAND, DL ;RAND holds random value
-
-  RET 
+	ADD DL, 1
+	MOV RAND, DL ;RAND holds random value
+	
+	RET 
 RANDGEN endp
 ;---------------------------------------------------------------
 CLEAR_SCREEN PROC NEAR  
